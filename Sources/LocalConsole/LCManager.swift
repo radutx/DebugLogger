@@ -8,8 +8,6 @@
 import UIKit
 import SwiftUI
 
-var GLOBAL_BORDER_TRACKERS: [BorderManager] = []
-
 @available(iOSApplicationExtension, unavailable)
 public class LCManager: NSObject, UIGestureRecognizerDelegate {
     
@@ -78,7 +76,7 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
         
         button.addAction(UIAction(handler: { [self] _ in
             UIViewPropertyAnimator(duration: 0.5, dampingRatio: 1) {
-                consoleView.center = nearestTargetTo(consoleView.center, possibleTargets: possibleEndpoints.dropLast())
+                self.consoleView.center = nearestTargetTo(self.consoleView.center, possibleTargets: self.possibleEndpoints.dropLast())
             }.startAnimation()
             grabberMode = false
             
@@ -636,8 +634,8 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
     }
     
     /// Copy the console view text to the device's clipboard.
-    public func copy() {
-        UIPasteboard.general.string = consoleTextView.text
+    public var text: String {
+        consoleTextView.text
     }
     
     // MARK: - Private
@@ -670,36 +668,6 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
     
     @objc func keyboardWillHide() {
         keyboardHeight = nil
-    }
-    
-    private var debugBordersEnabled = false {
-        didSet {
-            
-            UIView.swizzleDebugBehaviour_UNTRACKABLE_TOGGLE()
-            
-            guard debugBordersEnabled else {
-                GLOBAL_BORDER_TRACKERS.forEach {
-                    $0.deactivate()
-                }
-                GLOBAL_BORDER_TRACKERS = []
-                return
-            }
-            
-            func subviewsRecursive(in _view: UIView) -> [UIView] {
-                return _view.subviews + _view.subviews.flatMap { subviewsRecursive(in: $0) }
-            }
-            
-            var allViews: [UIView] = []
-            
-            for window in UIApplication.shared.windows {
-                allViews.append(contentsOf: subviewsRecursive(in: window))
-            }
-            allViews.forEach {
-                let tracker = BorderManager(view: $0)
-                GLOBAL_BORDER_TRACKERS.append(tracker)
-                tracker.activate()
-            }
-        }
     }
     
     var dynamicReportTimer: Timer? {
@@ -781,7 +749,7 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
             
             if currentText != "" { print("\n") }
             
-            let safeAreaInsets = consoleViewController.view.safeAreaInsets ?? .zero
+            let safeAreaInsets = consoleViewController.view.safeAreaInsets
             
             print(
                   """
@@ -859,16 +827,17 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
             }
         }
         
+        let close = UIAction(title: "Close Console", image: UIImage(systemName: "xmark")) { _ in
+            self.isVisible = false
+        }
+        
         let clear = UIAction(title: "Clear Console", image: UIImage(systemName: "delete.backward"), attributes: .destructive) { _ in
             self.clear()
         }
         
-        var frameSymbol = "rectangle.3.offgrid"
-        
         var debugActions: [UIMenuElement] = []
         
         if #available(iOS 15, *) {
-            frameSymbol = "square.inset.filled"
             
             let deferredUserDefaultsList = UIDeferredMenuElement.uncached { completion in
                 var actions: [UIAction] = []
@@ -984,15 +953,6 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
             debugActions.append(userDefaults)
         }
         
-        
-        let viewFrames = UIAction(
-            title: debugBordersEnabled ? "Hide View Frames" : "Show View Frames",
-            image: UIImage(systemName: frameSymbol)
-        ) { _ in
-            self.debugBordersEnabled.toggle()
-            self.menuButton.menu = self.makeMenu()
-        }
-        
         let systemReport = UIAction(title: "System Report", image: UIImage(systemName: "cpu")) { _ in
             self.systemReport()
         }
@@ -1023,42 +983,12 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
             self.displayReport()
         }
         
-        let terminateApplication = UIAction(title: "Terminate App", image: UIImage(systemName: "xmark"), attributes: .destructive) { _ in
-            UIApplication.shared.perform(NSSelectorFromString("terminateWithSuccess"))
-        }
-        
-        let respring = UIAction(title: "Restart Spring" + "Board", image: UIImage(systemName: "arrowtriangle.backward"), attributes: .destructive) { _ in
-            
-            guard let window = UIApplication.shared.windows.first else { return }
-            
-            window.layer.cornerRadius = UIScreen.main.value(forKey: "_displ" + "ayCorn" + "erRa" + "dius") as! CGFloat
-            window.layer.masksToBounds = true
-            
-            UIViewPropertyAnimator(duration: 0.5, dampingRatio: 1) {
-                window.transform = .init(scaleX: 0.96, y: 0.96)
-                window.alpha = 0
-            }.startAnimation()
-            
-            // Concurrently run these snapshots to decrease the time to crash.
-            for _ in 0...1000 {
-                DispatchQueue.global(qos: .default).async {
-                    
-                    // This will cause jetsam to terminate backboardd.
-                    while true {
-                        window.snapshotView(afterScreenUpdates: false)
-                    }
-                }
-            }
-        }
-        
-        debugActions.append(contentsOf: [viewFrames, systemReport, displayReport])
-        let destructActions = [terminateApplication , respring]
+        debugActions.append(contentsOf: [systemReport, displayReport])
         
         let debugMenu = UIMenu(
             title: "Debug", image: UIImage(systemName: "ant"),
             children: [
-                UIMenu(title: "", options: .displayInline, children: debugActions),
-                UIMenu(title: "", options: .displayInline, children: destructActions),
+                UIMenu(title: "", options: .displayInline, children: debugActions)
             ]
         )
         
@@ -1069,7 +999,11 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
         } else {
             menuContent.append(UIMenu(title: "", options: .displayInline, children: [resize]))
         }
+        
         menuContent.append(debugMenu)
+        
+        menuContent.append(UIMenu(title: "", options: .displayInline, children: [close]))
+        
         if consoleTextView.text != "" {
             menuContent.append(UIMenu(title: "", options: .displayInline, children: [clear]))
         }
@@ -1283,24 +1217,6 @@ public class UITapStartEndGestureRecognizer: UITapGestureRecognizer {
     }
     override public func touchesEnded(_ touches: Set<UITouch>, with: UIEvent) {
         self.state = .ended
-    }
-}
-
-// MARK: Fun hacks!
-extension UIView {
-    /// Swizzle UIView to use custom frame system when needed.
-    static func swizzleDebugBehaviour_UNTRACKABLE_TOGGLE() {
-        guard let originalMethod = class_getInstanceMethod(UIView.self, #selector(layoutSubviews)),
-              let swizzledMethod = class_getInstanceMethod(UIView.self, #selector(swizzled_layoutSubviews)) else { return }
-        method_exchangeImplementations(originalMethod, swizzledMethod)
-    }
-    
-    @objc func swizzled_layoutSubviews() {
-        swizzled_layoutSubviews()
-        
-        let tracker = BorderManager(view: self)
-        GLOBAL_BORDER_TRACKERS.append(tracker)
-        tracker.activate()
     }
 }
 
