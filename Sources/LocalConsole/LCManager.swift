@@ -635,7 +635,7 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
     
     /// Copy the console view text to the device's clipboard.
     public var text: String {
-        consoleTextView.text
+        currentText
     }
     
     // MARK: - Private
