@@ -444,7 +444,7 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
     }
     
     // MARK: - Public
-    @objc
+    @objc dynamic
     public var isVisible = false {
         didSet {
             guard oldValue != isVisible else { return }
