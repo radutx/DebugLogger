@@ -393,8 +393,12 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
         func addConsoleToWindow(window: UIWindow) {
             
             window.addSubview(consoleViewController.view)
-            window.rootViewController?.addChild(consoleViewController)
-            
+            if let tabbar = window.rootViewController as? UITabBarController,
+               let navigation = tabbar.viewControllers?.first as? UINavigationController {
+                navigation.viewControllers.first?.addChild(consoleViewController)
+            } else {
+                window.rootViewController?.addChild(consoleViewController)
+            }
             consoleViewController.view = PassthroughView()
             consoleViewController.view.addSubview(consoleView)
             
