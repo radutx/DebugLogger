@@ -705,9 +705,6 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
                 let regex0 = try! NSRegularExpression(pattern: "Thermal State:      .*", options: NSRegularExpression.Options.caseInsensitive)
                 _currentText = regex0.stringByReplacingMatches(in: _currentText, options: [], range: range, withTemplate: "Thermal State:      \(SystemReport.shared.thermalState)")
                 
-                let regex1 = try! NSRegularExpression(pattern: "System Uptime:      .*", options: NSRegularExpression.Options.caseInsensitive)
-                _currentText = regex1.stringByReplacingMatches(in: _currentText, options: [], range: range, withTemplate: "System Uptime:      \(ProcessInfo.processInfo.systemUptime.formattedString!)")
-                
                 let regex2 = try! NSRegularExpression(pattern: "Low Power Mode:     .*", options: NSRegularExpression.Options.caseInsensitive)
                 _currentText = regex2.stringByReplacingMatches(in: _currentText, options: [], range: range, withTemplate: "Low Power Mode:     \(ProcessInfo.processInfo.isLowPowerModeEnabled)")
                 
@@ -741,7 +738,6 @@ public class LCManager: NSObject, UIGestureRecognizerDelegate {
                   Memory:             \(round(100 * Double(ProcessInfo.processInfo.physicalMemory) * pow(10, -9)) / 100) GB
                   Processor Cores:    \(Int(ProcessInfo.processInfo.processorCount))
                   Thermal State:      \(SystemReport.shared.thermalState)
-                  System Uptime:      \(ProcessInfo.processInfo.systemUptime.formattedString!)
                   Low Power Mode:     \(ProcessInfo.processInfo.isLowPowerModeEnabled)
                   """
             )
