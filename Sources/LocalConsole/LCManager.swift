@@ -1289,7 +1289,11 @@ class LumaView: UIView {
             }
             
             pillView.setValue(2, forKey: "style")
-            pillView.setValue(1, forKey: "background" + "Luminance")
+            if #available(iOS 18.2, *) {
+                // set luminance in aanother way
+            } else {
+                pillView.setValue(1, forKey: "background" + "Luminance")
+            }
             pillView.perform(NSSelectorFromString("_" + "update" + "Style"))
             
             addSubview(pillView)
